@@ -1,0 +1,6 @@
+.env.local
+.env.local~
+.kv-data.json
+node_modules/
+.next/
+out/
