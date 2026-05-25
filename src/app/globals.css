@@ -1,0 +1,43 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-dm bg-eden-light text-eden-dark antialiased;
+  }
+}
+
+@layer utilities {
+  .font-syne   { font-family: 'Syne', sans-serif; }
+  .font-dm     { font-family: 'DM Sans', sans-serif; }
+}
+
+/* ── Pulse animation for review countdown ── */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+.pulse-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
+
+/* ── Card hover lift ── */
+.card-lift {
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.card-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 48px rgba(26,107,60,0.16);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar       { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #4CAF7A; border-radius: 10px; }
+
+/* ── Print styles ── */
+@media print {
+  .no-print { display: none !important; }
+  .print-full { margin: 0 !important; padding: 16px !important; }
+  .card-lift:hover { transform: none; box-shadow: none; }
+}
