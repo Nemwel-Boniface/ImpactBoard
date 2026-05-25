@@ -1,6 +1,6 @@
 /**
  * lib/kv.ts
- * All Vercel KV (Redis) operations for BragBoard.
+ * All Upstash Redis operations for BragBoard.
  *
  * Key schema:
  *   accomplishments:list          → string[]   (ordered list of IDs)
@@ -8,17 +8,7 @@
  *   meta:stats                    → cached DashboardStats (TTL 60s)
  */
 
-import { kv as vercelKV } from '@vercel/kv'
-import { localKV } from './kv-local'
-
-const isVercelKVConfigured =
-  !!process.env.KV_REST_API_URL &&
-  process.env.KV_REST_API_URL !== 'your_kv_rest_api_url_here' &&
-  !!process.env.KV_REST_API_TOKEN &&
-  process.env.KV_REST_API_TOKEN !== 'your_kv_rest_api_token_here'
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const kv: any = isVercelKVConfigured ? vercelKV : localKV
+import { Redis } from '@upstash/redis'
 import { v4 as uuidv4 } from 'uuid'
 import type {
   Accomplishment,
@@ -28,6 +18,14 @@ import type {
   CategorySlug,
 } from '@/types'
 import { CATEGORIES, calcImpactScore } from './categories'
+
+// Initialise the Upstash Redis client using env vars.
+// These are auto-injected by Vercel when you connect via the Marketplace integration,
+// or set manually in .env.local for local development.
+const kv = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+})
 
 const LIST_KEY = 'accomplishments:list'
 const itemKey = (id: string) => `accomplishments:item:${id}`
@@ -77,7 +75,7 @@ export async function createAccomplishment(
   await kv.pipeline()
     .set(itemKey(item.id), item)
     .lpush(LIST_KEY, item.id)
-    .del(STATS_KEY)           // bust stats cache
+    .del(STATS_KEY)
     .exec()
 
   return item
@@ -181,7 +179,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     byImpact,
     featured,
     impactScore: calcImpactScore(all),
-    meetingsTotal: 14,   // update via env or a separate KV key later
+    meetingsTotal: 14,
     meetingsLed: 6,
     daysUntilReview,
   }

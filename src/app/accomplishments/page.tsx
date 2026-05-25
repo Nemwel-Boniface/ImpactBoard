@@ -1,4 +1,6 @@
-'use client'
+ 'use client'
+
+export const dynamic = 'force-dynamic'
 import { useState, useEffect, useCallback } from 'react'
 import type { Accomplishment, CreateAccomplishment } from '@/types'
 import AccomplishmentCard from '@/components/AccomplishmentCard'
@@ -6,7 +8,6 @@ import AccomplishmentModal from '@/components/AccomplishmentModal'
 import { Button } from '@/components/ui'
 import { useToast, ToastContainer } from '@/hooks/useToast'
 import { CATEGORIES } from '@/lib/categories'
-import { useSearchParams } from 'next/navigation'
 import clsx from 'clsx'
 
 const ALL_TABS = [
@@ -15,12 +16,9 @@ const ALL_TABS = [
 ]
 
 export default function AccomplishmentsPage() {
-  const searchParams = useSearchParams()
-  const initialCat = searchParams.get('cat') ?? 'all'
-
   const [items, setItems]       = useState<Accomplishment[]>([])
   const [loading, setLoading]   = useState(true)
-  const [activeTab, setActiveTab] = useState(initialCat)
+  const [activeTab, setActiveTab] = useState('all')
   const [search, setSearch]     = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editItem, setEditItem] = useState<Accomplishment | null>(null)
@@ -39,6 +37,17 @@ export default function AccomplishmentsPage() {
   }, [activeTab, search])
 
   useEffect(() => { fetchItems() }, [fetchItems])
+
+  // Sync active tab from `?cat=` query param on client mount
+  useEffect(() => {
+    try {
+      const sp = new URL(window.location.href).searchParams
+      const cat = sp.get('cat')
+      if (cat) setActiveTab(cat)
+    } catch (e) {
+      // noop
+    }
+  }, [])
 
   const handleSave = async (formData: CreateAccomplishment) => {
     if (editItem) {
