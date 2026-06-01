@@ -1,6 +1,7 @@
 import { getDashboardStats, getAllAccomplishments } from '@/lib/kv'
 import { generateOpeningStatement, CATEGORIES, calcImpactScore } from '@/lib/categories'
 import { StatCard, Card, SectionHeader } from '@/components/ui'
+import JourneyProgress from '@/components/JourneyProgress'
 import Link from 'next/link'
 
 export const revalidate = 60  // ISR: revalidate every 60s
@@ -11,14 +12,8 @@ export default async function DashboardPage() {
     getAllAccomplishments(),
   ])
 
-  const userName   = process.env.NEXT_PUBLIC_USER_NAME   ?? 'You'
-  const reviewDate = process.env.NEXT_PUBLIC_REVIEW_DATE ?? '2025-06-15'
-  const startDate  = new Date(Date.now() - 70 * 86400000) // ~10 weeks ago
-  const totalDays  = Math.ceil((new Date(reviewDate).getTime() - startDate.getTime()) / 86400000)
-  const elapsedDays = totalDays - stats.daysUntilReview
-  const progress   = Math.round((elapsedDays / totalDays) * 100)
-
-  const statement  = generateOpeningStatement(items, userName)
+  const userName  = process.env.NEXT_PUBLIC_USER_NAME ?? 'Nemwel Boniface'
+  const statement = generateOpeningStatement(items, userName)
 
   const catCounts = CATEGORIES.map(c => ({
     ...c,
@@ -67,22 +62,7 @@ export default async function DashboardPage() {
 
       {/* 90-day progress */}
       <Card className="p-6 mb-7">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="font-syne font-bold text-[16px]">🗓 90-Day Journey</h2>
-          <span className="text-[12px] text-eden-grey">Review in {stats.daysUntilReview} days</span>
-        </div>
-        <div className="h-2 bg-eden-light rounded-full overflow-hidden mb-2">
-          <div
-            className="h-full bg-gradient-to-r from-eden-green to-eden-green-mid rounded-full transition-all duration-1000"
-            style={{ width: `${Math.min(progress, 100)}%` }}
-          />
-        </div>
-        <div className="flex justify-between text-[11px] text-eden-grey">
-          <span>Day 1 — Joined</span>
-          <span>Month 1 ✓</span>
-          <span>Month 2 ✓</span>
-          <span>← Review</span>
-        </div>
+        <JourneyProgress />
       </Card>
 
       {/* Charts row */}
