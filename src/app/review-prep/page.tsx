@@ -3,14 +3,29 @@ import { generateOpeningStatement, CATEGORIES } from '@/lib/categories'
 import { Card } from '@/components/ui'
 import { CategoryBadge, ImpactIndicator } from '@/components/ui'
 import CopyButton from './CopyButton'
+import PrintButton from './PrintButton'
+import Link from 'next/link'
 
 export const revalidate = 60
 
 export default async function ReviewPrepPage() {
-  const [items, stats] = await Promise.all([
-    getAllAccomplishments(),
-    getDashboardStats(),
-  ])
+  let items, stats
+  try {
+    ;[items, stats] = await Promise.all([
+      getAllAccomplishments(),
+      getDashboardStats(),
+    ])
+  } catch {
+    return (
+      <div className="p-9 max-w-[800px]">
+        <div className="bg-red-50 border border-red-200 rounded-card p-8 text-center">
+          <div className="text-4xl mb-3">⚠️</div>
+          <h2 className="font-syne font-bold text-[18px] text-red-700 mb-2">Could not load review data</h2>
+          <p className="text-[13px] text-red-500">Check that your Redis credentials are configured, then refresh.</p>
+        </div>
+      </div>
+    )
+  }
 
   const userName  = process.env.NEXT_PUBLIC_USER_NAME  ?? 'You'
   const statement = generateOpeningStatement(items, userName)
@@ -33,6 +48,30 @@ export default async function ReviewPrepPage() {
     { label: 'Integrations Built',  value: String(stats.byCategory['integration'] ?? 0), color: 'green' as const },
     { label: 'Impact Score /100',   value: String(stats.impactScore),               color: 'green' as const },
   ]
+
+  if (items.length === 0) {
+    return (
+      <div className="p-9 max-w-[800px]">
+        <div className="bg-gradient-to-br from-eden-green to-eden-dark rounded-card p-7 mb-6 text-white">
+          <h1 className="font-syne font-extrabold text-[26px] mb-2">📋 Performance Review Prep</h1>
+          <p className="text-[14px] opacity-80">Your structured narrative will appear here once you log accomplishments.</p>
+        </div>
+        <Card className="p-10 text-center">
+          <div className="text-5xl mb-4">📭</div>
+          <h2 className="font-syne font-bold text-[20px] text-eden-dark mb-2">Nothing to prep yet</h2>
+          <p className="text-[14px] text-eden-grey mb-6 max-w-[380px] mx-auto">
+            Add your wins to the accomplishments log and your review narrative will be auto-generated here.
+          </p>
+          <Link
+            href="/accomplishments"
+            className="inline-flex items-center gap-2 bg-eden-green text-white font-syne font-semibold text-[13px] px-5 py-2.5 rounded-lg hover:bg-eden-green-light transition-all"
+          >
+            + Log your first accomplishment
+          </Link>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="p-9 max-w-[800px]">
@@ -73,6 +112,9 @@ export default async function ReviewPrepPage() {
           </p>
         </div>
         <div className="space-y-3">
+          {topItems.length === 0 && (
+            <p className="text-[13px] text-eden-grey py-4 text-center">No items yet — add accomplishments to populate this section.</p>
+          )}
           {topItems.map((item, i) => (
             <div
               key={item.id}
@@ -139,12 +181,7 @@ export default async function ReviewPrepPage() {
           >
             ↗ Export JSON
           </a>
-          <button
-            onClick={() => typeof window !== 'undefined' && window.print()}
-            className="flex-1 flex items-center justify-center gap-2 border-[1.5px] border-eden-green text-eden-green font-syne font-semibold text-[13px] py-2.5 rounded-lg hover:bg-eden-green-pale transition-all no-print"
-          >
-            🖨 Print / PDF
-          </button>
+          <PrintButton />
         </div>
       </Card>
 
