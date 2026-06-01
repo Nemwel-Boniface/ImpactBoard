@@ -126,8 +126,9 @@ export default function JourneyProgress() {
         </div>
       </div>
 
-      {/* ── Phase 2: Contract Extension (shown always once P1 is close or done) ── */}
-      <div className={`space-y-3 pt-4 border-t border-eden-green/10 ${inPhase1 ? 'opacity-40' : ''}`}>
+      {/* ── Phase 2: Contract Extension (hidden until Jun 20) ── */}
+      {today >= new Date('2026-06-20') && (
+      <div className="space-y-3 pt-4 border-t border-eden-green/10">
         <div className="flex justify-between items-center">
           <h2 className="font-syne font-bold text-[16px]">🤝 Month 5 — Contract Extension</h2>
           {bothComplete ? (
@@ -190,6 +191,7 @@ export default function JourneyProgress() {
           </span>
         </div>
       </div>
+      )}
 
     </div>
   )
