@@ -54,7 +54,7 @@ export default function Sidebar() {
       {/* User */}
       <div className="px-6 py-4 border-b border-white/[0.07]">
         <div className="font-syne font-semibold text-white text-sm">{userName}</div>
-        <div className="text-[11px] text-eden-grey mt-0.5">{userRole} · eDENCARE</div>
+        <div className="text-[11px] text-eden-grey mt-0.5">{userRole} at Eden Care Medical</div>
         {isPostReview ? (
           <div className="mt-2.5 inline-flex items-center gap-1.5 bg-eden-green/15 border border-eden-green/30 rounded-full px-2.5 py-1 text-[11px] text-eden-green-mid font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-eden-green-mid inline-block" />

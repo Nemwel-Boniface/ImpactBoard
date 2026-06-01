@@ -22,7 +22,7 @@ export default function JourneyProgress() {
   const elapsed  = Math.min(Math.max(daysBetween(START, today), 0), TOTAL_DAYS)
   const isPost   = today > REVIEW
   const progress = isPost ? 100 : Math.round((elapsed / TOTAL_DAYS) * 100)
-  const daysLeft = Math.ceil(daysBetween(today, REVIEW))
+  const daysLeft = Math.ceil((REVIEW.getTime() - today.getTime()) / 86400000)
   const daysSince = isPost ? daysBetween(REVIEW, today) : 0
 
   function onMouseMove(e: React.MouseEvent<HTMLDivElement>) {
