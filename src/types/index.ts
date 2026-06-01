@@ -16,8 +16,9 @@ export interface Accomplishment {
   description: string
   impact: ImpactLevel
   metrics: string[]        // up to 3 key numbers / phrases
-  date: string             // ISO date string e.g. "2025-02-15"
+  date: string             // ISO date string e.g. "2026-05-15"
   featured: boolean
+  week?: string            // e.g. "Week 14" — optional, populated from Excel import or manual entry
   source: 'manual' | 'import'
   createdAt: string        // ISO timestamp
   updatedAt: string        // ISO timestamp
@@ -26,7 +27,7 @@ export interface Accomplishment {
 export type CreateAccomplishment = Omit<
   Accomplishment,
   'id' | 'createdAt' | 'updatedAt' | 'source'
-> & { source?: 'manual' | 'import' }
+> & { source?: 'manual' | 'import'; week?: string }
 
 export type UpdateAccomplishment = Partial<CreateAccomplishment>
 
