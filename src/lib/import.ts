@@ -14,8 +14,12 @@ const WEEK_KEYS     = ['week', 'week number', 'sprint']
 const FEATURED_KEYS = ['featured', 'feature', 'top', 'highlight']
 
 function findValue(row: Record<string, unknown>, keys: string[]): string {
+  // Normalise row keys to lowercase once so "Title", "TITLE", "title" all match
+  const normalized: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(row)) normalized[k.toLowerCase()] = v
+
   for (const key of keys) {
-    const val = row[key] ?? row[key.toUpperCase()] ?? row[key.toLowerCase()]
+    const val = normalized[key.toLowerCase()]
     if (val !== undefined && val !== null && String(val).trim() !== '') {
       return String(val).trim()
     }
