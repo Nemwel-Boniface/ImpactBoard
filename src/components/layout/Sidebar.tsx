@@ -18,18 +18,21 @@ const CATS = [
   { label: 'Infra',         href: '/accomplishments?cat=infra',        icon: '🛠',  badge: 'amber' },
 ]
 
-const userName   = process.env.NEXT_PUBLIC_USER_NAME   ?? 'Nemwel Boniface'
-const userRole   = process.env.NEXT_PUBLIC_USER_ROLE   ?? 'Backend Engineer'
-const reviewDate = process.env.NEXT_PUBLIC_REVIEW_DATE ?? '2026-06-16'
+const userName      = process.env.NEXT_PUBLIC_USER_NAME   ?? 'Nemwel Boniface'
+const userRole      = process.env.NEXT_PUBLIC_USER_ROLE   ?? 'Backend Engineer'
+const REVIEW_DATE   = new Date(process.env.NEXT_PUBLIC_REVIEW_DATE ?? '2026-06-16')
+const CONTRACT_DATE = new Date('2026-08-15')
 
-function daysUntil(dateStr: string) {
-  return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000)
+function daysUntil(target: Date) {
+  return Math.ceil((target.getTime() - Date.now()) / 86400000)
 }
 
 export default function Sidebar() {
-  const path = usePathname()
-  const days = daysUntil(reviewDate)
-  const isPostReview = days <= 0
+  const path            = usePathname()
+  const daysToReview    = daysUntil(REVIEW_DATE)
+  const daysToContract  = daysUntil(CONTRACT_DATE)
+  const isPostReview    = daysToReview <= 0
+  const isPostContract  = daysToContract <= 0
 
   return (
     <aside className="fixed left-0 top-0 bottom-0 w-[240px] bg-eden-dark flex flex-col z-50">
@@ -55,15 +58,20 @@ export default function Sidebar() {
       <div className="px-6 py-4 border-b border-white/[0.07]">
         <div className="font-syne font-semibold text-white text-sm">{userName}</div>
         <div className="text-[11px] text-eden-grey mt-0.5">{userRole} at Eden Care Medical</div>
-        {isPostReview ? (
+        {!isPostReview ? (
+          <div className="mt-2.5 inline-flex items-center gap-1.5 bg-eden-orange/15 border border-eden-orange/30 rounded-full px-2.5 py-1 text-[11px] text-eden-orange-light font-medium">
+            <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-eden-orange inline-block" />
+            Review in {daysToReview} days
+          </div>
+        ) : isPostContract ? (
           <div className="mt-2.5 inline-flex items-center gap-1.5 bg-eden-green/15 border border-eden-green/30 rounded-full px-2.5 py-1 text-[11px] text-eden-green-mid font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-eden-green-mid inline-block" />
-            90-Day Review Complete
+            Contract talk complete ✅
           </div>
         ) : (
           <div className="mt-2.5 inline-flex items-center gap-1.5 bg-eden-orange/15 border border-eden-orange/30 rounded-full px-2.5 py-1 text-[11px] text-eden-orange-light font-medium">
             <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-eden-orange inline-block" />
-            Review in {days} days
+            Contract talk in {daysToContract}d
           </div>
         )}
       </div>
