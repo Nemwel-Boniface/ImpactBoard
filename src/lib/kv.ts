@@ -19,13 +19,17 @@ import type {
 } from '@/types'
 import { CATEGORIES, calcImpactScore } from './categories'
 
-// Initialise the Upstash Redis client using env vars.
-// These are auto-injected by Vercel when you connect via the Marketplace integration,
-// or set manually in .env.local for local development.
-const kv = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-})
+// Vercel KV uses KV_REST_API_URL / KV_REST_API_TOKEN (auto-injected when linked).
+// Fall back to UPSTASH_* names for self-hosted setups.
+const kvUrl   = process.env.KV_REST_API_URL   ?? process.env.UPSTASH_REDIS_REST_URL   ?? ''
+const kvToken = process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN ?? ''
+
+const isConfigured =
+  kvUrl.startsWith('https://') && kvToken.length > 0
+
+const kv = isConfigured
+  ? new Redis({ url: kvUrl, token: kvToken })
+  : null as unknown as Redis
 
 const LIST_KEY = 'accomplishments:list'
 const itemKey = (id: string) => `accomplishments:item:${id}`
@@ -34,6 +38,7 @@ const STATS_KEY = 'meta:stats'
 // ── READ ──────────────────────────────────────────────────────
 
 export async function getAllAccomplishments(): Promise<Accomplishment[]> {
+  if (!isConfigured) return []
   const ids = await kv.lrange<string>(LIST_KEY, 0, -1)
   if (!ids || ids.length === 0) return []
 
@@ -47,6 +52,7 @@ export async function getAllAccomplishments(): Promise<Accomplishment[]> {
 }
 
 export async function getAccomplishment(id: string): Promise<Accomplishment | null> {
+  if (!isConfigured) return null
   return kv.get<Accomplishment>(itemKey(id))
 }
 
@@ -62,6 +68,7 @@ export async function getAccomplishmentsByCategory(
 export async function createAccomplishment(
   data: CreateAccomplishment
 ): Promise<Accomplishment> {
+  if (!isConfigured) throw new Error('Redis not configured')
   const now = new Date().toISOString()
   const item: Accomplishment = {
     ...data,
@@ -85,6 +92,7 @@ export async function updateAccomplishment(
   id: string,
   data: UpdateAccomplishment
 ): Promise<Accomplishment | null> {
+  if (!isConfigured) throw new Error('Redis not configured')
   const existing = await getAccomplishment(id)
   if (!existing) return null
 
@@ -105,6 +113,7 @@ export async function updateAccomplishment(
 }
 
 export async function deleteAccomplishment(id: string): Promise<boolean> {
+  if (!isConfigured) throw new Error('Redis not configured')
   const existing = await getAccomplishment(id)
   if (!existing) return false
 
@@ -128,6 +137,7 @@ export async function toggleFeatured(id: string): Promise<Accomplishment | null>
 export async function bulkCreateAccomplishments(
   items: CreateAccomplishment[]
 ): Promise<{ created: number; skipped: number }> {
+  if (!isConfigured) throw new Error('Redis not configured')
   const all = await getAllAccomplishments()
   const existingTitles = new Set(all.map(a => a.title.toLowerCase().trim()))
 
@@ -152,7 +162,7 @@ export async function bulkCreateAccomplishments(
 
 export async function getDashboardStats(): Promise<DashboardStats> {
   // Try cache first
-  const cached = await kv.get<DashboardStats>(STATS_KEY)
+  const cached = isConfigured ? await kv.get<DashboardStats>(STATS_KEY) : null
   if (cached) return cached
 
   const all = await getAllAccomplishments()
@@ -167,7 +177,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     if (item.featured) featured++
   }
 
-  const reviewDate = new Date(process.env.NEXT_PUBLIC_REVIEW_DATE ?? '2025-06-15')
+  const reviewDate = new Date(process.env.NEXT_PUBLIC_REVIEW_DATE ?? '2026-06-16')
   const daysUntilReview = Math.max(
     0,
     Math.ceil((reviewDate.getTime() - Date.now()) / 86400000)
@@ -184,8 +194,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     daysUntilReview,
   }
 
-  // Cache for 60 seconds
-  await kv.set(STATS_KEY, stats, { ex: 60 })
+  if (isConfigured) await kv.set(STATS_KEY, stats, { ex: 60 })
   return stats
 }
 
