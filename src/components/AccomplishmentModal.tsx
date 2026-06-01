@@ -20,6 +20,7 @@ const EMPTY: CreateAccomplishment = {
   metrics: [],
   date: new Date().toISOString().split('T')[0],
   featured: false,
+  week: '',
 }
 
 export default function AccomplishmentModal({ open, editItem, onClose, onSave }: Props) {
@@ -38,6 +39,7 @@ export default function AccomplishmentModal({ open, editItem, onClose, onSave }:
         metrics: editItem.metrics,
         date: editItem.date,
         featured: editItem.featured,
+        week: editItem.week ?? '',
       })
       const m = [...editItem.metrics, '', '', ''].slice(0, 3)
       setMetrics(m)
@@ -195,6 +197,19 @@ export default function AccomplishmentModal({ open, editItem, onClose, onSave }:
               />
             ))}
           </div>
+        </div>
+
+        {/* Week */}
+        <div className="mb-4">
+          <label className="block text-[11px] font-semibold uppercase tracking-[0.5px] text-eden-charcoal mb-1.5">
+            Week <span className="normal-case tracking-normal text-eden-grey font-normal ml-1">(optional, e.g. "Week 14")</span>
+          </label>
+          <input
+            className="w-full px-3.5 py-2.5 border-[1.5px] border-eden-green/20 rounded-lg font-dm text-[14px] focus:outline-none focus:border-eden-green focus:ring-2 focus:ring-eden-green/10 transition-all"
+            placeholder="e.g. Week 14"
+            value={form.week ?? ''}
+            onChange={e => setForm(p => ({ ...p, week: e.target.value }))}
+          />
         </div>
 
         {/* Featured */}
