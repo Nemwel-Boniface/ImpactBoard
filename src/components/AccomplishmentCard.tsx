@@ -71,7 +71,14 @@ export default function AccomplishmentCard({ item, onToggleFeatured, onDelete, o
 
       {/* Footer */}
       <div className="flex items-center justify-between pt-3 border-t border-eden-green/[0.07]">
-        <span className="text-[11px] text-eden-grey">📅 {dateLabel}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-eden-grey">📅 {dateLabel}</span>
+          {item.week && (
+            <span className="text-[10px] font-semibold bg-eden-orange-pale text-eden-orange px-2 py-0.5 rounded-full">
+              {item.week}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => onToggleFeatured(item.id)}

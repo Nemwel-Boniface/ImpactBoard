@@ -4,22 +4,25 @@ import type { CreateAccomplishment } from '@/types'
 
 export const runtime = 'nodejs'
 
-// GET /api/accomplishments?category=core&impact=high
+// GET /api/accomplishments?category=core&impact=high&week=Week%2014&search=preauth
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const category = searchParams.get('category')
     const impact   = searchParams.get('impact')
     const search   = searchParams.get('search')?.toLowerCase()
+    const week     = searchParams.get('week')
 
     let items = category
       ? await getAccomplishmentsByCategory(category)
       : await getAllAccomplishments()
 
-    if (impact)  items = items.filter(i => i.impact === impact)
-    if (search)  items = items.filter(i =>
+    if (impact) items = items.filter(i => i.impact === impact)
+    if (week)   items = items.filter(i => i.week === week)
+    if (search) items = items.filter(i =>
       i.title.toLowerCase().includes(search) ||
-      i.description?.toLowerCase().includes(search)
+      i.description?.toLowerCase().includes(search) ||
+      i.week?.toLowerCase().includes(search)
     )
 
     return NextResponse.json({ data: items })
