@@ -1,4 +1,4 @@
-import { getDashboardStats, getAllAccomplishments } from '@/lib/kv'
+import { getDashboardStats, getAllAccomplishments, getAllKPIs, getAllOneOnOnes, getAllReviews } from '@/lib/kv'
 import { generateOpeningStatement, CATEGORIES, calcImpactScore } from '@/lib/categories'
 import { StatCard, Card, SectionHeader } from '@/components/ui'
 import JourneyProgress from '@/components/JourneyProgress'
@@ -7,9 +7,12 @@ import Link from 'next/link'
 export const revalidate = 60  // ISR: revalidate every 60s
 
 export default async function DashboardPage() {
-  const [stats, items] = await Promise.all([
+  const [stats, items, kpis, oneOnOnes, reviews] = await Promise.all([
     getDashboardStats(),
     getAllAccomplishments(),
+    getAllKPIs(),
+    getAllOneOnOnes(),
+    getAllReviews(),
   ])
 
   const userName  = process.env.NEXT_PUBLIC_USER_NAME ?? 'Nemwel Boniface'
@@ -22,8 +25,55 @@ export default async function DashboardPage() {
 
   const maxCatCount = Math.max(...catCounts.map(c => c.count), 1)
 
+  // KPI progress — count accomplishments linked to each KPI
+  const kpiProgress = kpis.map(kpi => ({
+    ...kpi,
+    accomplishmentCount: items.filter(a => a.kpiIds?.includes(kpi.id)).length,
+  }))
+  const maxKpiCount = Math.max(...kpiProgress.map(k => k.accomplishmentCount), 1)
+
+  // Upcoming 1:1 within 7 days
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+  const upcomingMeeting = oneOnOnes
+    .filter(m => m.status === 'scheduled')
+    .map(m => {
+      const target = new Date(m.scheduledDate)
+      target.setHours(0, 0, 0, 0)
+      const days = Math.ceil((target.getTime() - now.getTime()) / 86400000)
+      return { ...m, days }
+    })
+    .filter(m => m.days >= 0 && m.days <= 7)
+    .sort((a, b) => a.days - b.days)[0]
+
+  // Next upcoming review
+  const nextReview = reviews
+    .filter(r => r.status === 'upcoming')
+    .map(r => {
+      const target = new Date(r.scheduledDate)
+      target.setHours(0, 0, 0, 0)
+      const days = Math.ceil((target.getTime() - now.getTime()) / 86400000)
+      return { ...r, days }
+    })
+    .sort((a, b) => a.days - b.days)[0]
+
   return (
     <div className="p-9">
+
+      {/* Upcoming 1:1 banner */}
+      {upcomingMeeting && (
+        <Link href="/one-on-ones">
+          <div className="mb-5 flex items-center gap-3 bg-eden-orange-pale border border-eden-orange/30 rounded-xl px-5 py-3 hover:bg-eden-orange/10 transition-all cursor-pointer">
+            <span className="text-xl">📅</span>
+            <span className="text-[13px] font-semibold text-eden-orange">
+              1:1 with {upcomingMeeting.withName}
+              {upcomingMeeting.days === 0 ? ' — Today!' : ` in ${upcomingMeeting.days} day${upcomingMeeting.days !== 1 ? 's' : ''}`}
+              {' · '}{upcomingMeeting.scheduledDate}
+            </span>
+            <span className="ml-auto text-[12px] text-eden-orange font-medium">View →</span>
+          </div>
+        </Link>
+      )}
 
       {/* Stats row */}
       <div className="grid grid-cols-5 gap-4 mb-7">
@@ -125,6 +175,80 @@ export default async function DashboardPage() {
               </p>
             </div>
           </div>
+        </Card>
+      </div>
+
+      {/* KPI Progress + Review countdown side by side */}
+      <div className="grid grid-cols-3 gap-5 mb-7">
+
+        {/* KPI Progress Panel — spans 2 cols */}
+        <Card className="p-6 col-span-2">
+          <div className="flex items-center justify-between mb-5">
+            <SectionHeader title="📈 KPI Progress" />
+            <Link href="/kpis" className="text-[12px] text-eden-green font-semibold hover:underline">
+              View KPIs →
+            </Link>
+          </div>
+          {kpiProgress.length === 0 ? (
+            <p className="text-[13px] text-eden-grey">
+              No KPIs yet. <Link href="/api/seed?key=bragboard-seed-2026" className="text-eden-green font-semibold hover:underline">Run seed</Link> to load them.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {kpiProgress.map(kpi => (
+                <Link key={kpi.id} href="/kpis" className="block group">
+                  <div className="flex justify-between text-[12px] mb-1.5">
+                    <span className="font-semibold text-eden-dark group-hover:text-eden-green transition-colors">
+                      {kpi.title}
+                      <span className="ml-2 font-normal text-eden-grey">({kpi.weight}%)</span>
+                    </span>
+                    <span className="text-eden-grey">
+                      {kpi.accomplishmentCount} accomplishment{kpi.accomplishmentCount !== 1 ? 's' : ''} linked
+                    </span>
+                  </div>
+                  <div className="h-2.5 bg-eden-light rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-eden-green to-eden-green-mid transition-all duration-700"
+                      style={{ width: `${maxKpiCount > 0 ? (kpi.accomplishmentCount / maxKpiCount) * 100 : 0}%` }}
+                    />
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        {/* Next Review countdown */}
+        <Card className="p-6" accent="orange">
+          <h2 className="font-syne font-bold text-[15px] text-eden-dark mb-4">📋 Next Review</h2>
+          {nextReview ? (
+            <Link href="/reviews" className="block">
+              <p className="font-syne font-bold text-[17px] text-eden-dark mb-1">{nextReview.title}</p>
+              <p className="text-[13px] text-eden-grey mb-3">
+                {new Date(nextReview.scheduledDate).toLocaleDateString('en-US', {
+                  month: 'long', day: 'numeric', year: 'numeric',
+                })}
+              </p>
+              <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-bold ${
+                nextReview.days <= 7
+                  ? 'bg-eden-orange-pale text-eden-orange'
+                  : 'bg-eden-light text-eden-grey'
+              }`}>
+                <span className="w-1.5 h-1.5 rounded-full bg-current inline-block" />
+                {nextReview.days === 0 ? 'Today!' : nextReview.days < 0 ? 'Overdue' : `${nextReview.days} days away`}
+              </div>
+              <p className="text-[12px] text-eden-green font-semibold mt-3 hover:underline">
+                View Reviews →
+              </p>
+            </Link>
+          ) : (
+            <div className="text-center py-4">
+              <p className="text-[13px] text-eden-grey mb-3">No upcoming reviews</p>
+              <Link href="/reviews" className="text-[12px] text-eden-green font-semibold hover:underline">
+                Add a review date →
+              </Link>
+            </div>
+          )}
         </Card>
       </div>
 
