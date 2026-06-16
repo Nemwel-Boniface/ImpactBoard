@@ -16,6 +16,10 @@ import type {
   UpdateAccomplishment,
   DashboardStats,
   CategorySlug,
+  CompanyObjective,
+  KPI,
+  OneOnOne,
+  PerformanceReview,
 } from '@/types'
 import { CATEGORIES, calcImpactScore } from './categories'
 
@@ -224,4 +228,211 @@ export async function exportAllAsCSV(): Promise<string> {
     ].join(',')
   )
   return [header, ...rows].join('\n')
+}
+
+// ── COMPANY OBJECTIVES ────────────────────────────────────────
+
+const OBJ_LIST = 'company-objectives:list'
+const objKey   = (id: string) => `company-objectives:item:${id}`
+
+export async function getAllObjectives(): Promise<CompanyObjective[]> {
+  if (!isConfigured) return []
+  const ids = await kv.lrange<string>(OBJ_LIST, 0, -1)
+  if (!ids || ids.length === 0) return []
+  const pipeline = kv.pipeline()
+  ids.forEach(id => pipeline.get(objKey(id)))
+  const results = await pipeline.exec()
+  return (results as (CompanyObjective | null)[])
+    .filter((r): r is CompanyObjective => r !== null)
+    .sort((a, b) => a.order - b.order)
+}
+
+export async function getObjective(id: string): Promise<CompanyObjective | null> {
+  if (!isConfigured) return null
+  return kv.get<CompanyObjective>(objKey(id))
+}
+
+export async function createObjective(
+  data: Omit<CompanyObjective, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<CompanyObjective> {
+  if (!isConfigured) throw new Error('Redis not configured')
+  const now = new Date().toISOString()
+  const item: CompanyObjective = { ...data, id: uuidv4(), createdAt: now, updatedAt: now }
+  await kv.pipeline().set(objKey(item.id), item).lpush(OBJ_LIST, item.id).exec()
+  return item
+}
+
+export async function updateObjective(
+  id: string,
+  data: Partial<CompanyObjective>
+): Promise<CompanyObjective | null> {
+  if (!isConfigured) throw new Error('Redis not configured')
+  const existing = await getObjective(id)
+  if (!existing) return null
+  const updated: CompanyObjective = { ...existing, ...data, id, updatedAt: new Date().toISOString() }
+  await kv.set(objKey(id), updated)
+  return updated
+}
+
+export async function deleteObjective(id: string): Promise<boolean> {
+  if (!isConfigured) throw new Error('Redis not configured')
+  const existing = await getObjective(id)
+  if (!existing) return false
+  await kv.pipeline().del(objKey(id)).lrem(OBJ_LIST, 0, id).exec()
+  return true
+}
+
+// ── KPIs ──────────────────────────────────────────────────────
+
+const KPI_LIST = 'kpis:list'
+const kpiKey   = (id: string) => `kpis:item:${id}`
+
+export async function getAllKPIs(): Promise<KPI[]> {
+  if (!isConfigured) return []
+  const ids = await kv.lrange<string>(KPI_LIST, 0, -1)
+  if (!ids || ids.length === 0) return []
+  const pipeline = kv.pipeline()
+  ids.forEach(id => pipeline.get(kpiKey(id)))
+  const results = await pipeline.exec()
+  return (results as (KPI | null)[])
+    .filter((r): r is KPI => r !== null)
+    .sort((a, b) => b.weight - a.weight)
+}
+
+export async function getKPI(id: string): Promise<KPI | null> {
+  if (!isConfigured) return null
+  return kv.get<KPI>(kpiKey(id))
+}
+
+export async function getKPIsByObjective(objectiveId: string): Promise<KPI[]> {
+  const all = await getAllKPIs()
+  return all.filter(k => k.objectiveId === objectiveId)
+}
+
+export async function createKPI(
+  data: Omit<KPI, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<KPI> {
+  if (!isConfigured) throw new Error('Redis not configured')
+  const now = new Date().toISOString()
+  const item: KPI = { ...data, id: uuidv4(), createdAt: now, updatedAt: now }
+  await kv.pipeline().set(kpiKey(item.id), item).lpush(KPI_LIST, item.id).exec()
+  return item
+}
+
+export async function updateKPI(id: string, data: Partial<KPI>): Promise<KPI | null> {
+  if (!isConfigured) throw new Error('Redis not configured')
+  const existing = await getKPI(id)
+  if (!existing) return null
+  const updated: KPI = { ...existing, ...data, id, updatedAt: new Date().toISOString() }
+  await kv.set(kpiKey(id), updated)
+  return updated
+}
+
+export async function deleteKPI(id: string): Promise<boolean> {
+  if (!isConfigured) throw new Error('Redis not configured')
+  const existing = await getKPI(id)
+  if (!existing) return false
+  await kv.pipeline().del(kpiKey(id)).lrem(KPI_LIST, 0, id).exec()
+  return true
+}
+
+// ── 1:1 MEETINGS ─────────────────────────────────────────────
+
+const OOO_LIST = 'one-on-ones:list'
+const oooKey   = (id: string) => `one-on-ones:item:${id}`
+
+export async function getAllOneOnOnes(): Promise<OneOnOne[]> {
+  if (!isConfigured) return []
+  const ids = await kv.lrange<string>(OOO_LIST, 0, -1)
+  if (!ids || ids.length === 0) return []
+  const pipeline = kv.pipeline()
+  ids.forEach(id => pipeline.get(oooKey(id)))
+  const results = await pipeline.exec()
+  return (results as (OneOnOne | null)[])
+    .filter((r): r is OneOnOne => r !== null)
+    .sort((a, b) => new Date(b.scheduledDate).getTime() - new Date(a.scheduledDate).getTime())
+}
+
+export async function getOneOnOne(id: string): Promise<OneOnOne | null> {
+  if (!isConfigured) return null
+  return kv.get<OneOnOne>(oooKey(id))
+}
+
+export async function createOneOnOne(
+  data: Omit<OneOnOne, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<OneOnOne> {
+  if (!isConfigured) throw new Error('Redis not configured')
+  const now = new Date().toISOString()
+  const item: OneOnOne = { ...data, id: uuidv4(), createdAt: now, updatedAt: now }
+  await kv.pipeline().set(oooKey(item.id), item).lpush(OOO_LIST, item.id).exec()
+  return item
+}
+
+export async function updateOneOnOne(id: string, data: Partial<OneOnOne>): Promise<OneOnOne | null> {
+  if (!isConfigured) throw new Error('Redis not configured')
+  const existing = await getOneOnOne(id)
+  if (!existing) return null
+  const updated: OneOnOne = { ...existing, ...data, id, updatedAt: new Date().toISOString() }
+  await kv.set(oooKey(id), updated)
+  return updated
+}
+
+export async function deleteOneOnOne(id: string): Promise<boolean> {
+  if (!isConfigured) throw new Error('Redis not configured')
+  const existing = await getOneOnOne(id)
+  if (!existing) return false
+  await kv.pipeline().del(oooKey(id)).lrem(OOO_LIST, 0, id).exec()
+  return true
+}
+
+// ── PERFORMANCE REVIEWS ───────────────────────────────────────
+
+const REV_LIST = 'reviews:list'
+const revKey   = (id: string) => `reviews:item:${id}`
+
+export async function getAllReviews(): Promise<PerformanceReview[]> {
+  if (!isConfigured) return []
+  const ids = await kv.lrange<string>(REV_LIST, 0, -1)
+  if (!ids || ids.length === 0) return []
+  const pipeline = kv.pipeline()
+  ids.forEach(id => pipeline.get(revKey(id)))
+  const results = await pipeline.exec()
+  return (results as (PerformanceReview | null)[])
+    .filter((r): r is PerformanceReview => r !== null)
+    .sort((a, b) => new Date(b.scheduledDate).getTime() - new Date(a.scheduledDate).getTime())
+}
+
+export async function getReview(id: string): Promise<PerformanceReview | null> {
+  if (!isConfigured) return null
+  return kv.get<PerformanceReview>(revKey(id))
+}
+
+export async function createReview(
+  data: Omit<PerformanceReview, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<PerformanceReview> {
+  if (!isConfigured) throw new Error('Redis not configured')
+  const now = new Date().toISOString()
+  const item: PerformanceReview = { ...data, id: uuidv4(), createdAt: now, updatedAt: now }
+  await kv.pipeline().set(revKey(item.id), item).lpush(REV_LIST, item.id).exec()
+  return item
+}
+
+export async function updateReview(
+  id: string,
+  data: Partial<PerformanceReview>
+): Promise<PerformanceReview | null> {
+  if (!isConfigured) throw new Error('Redis not configured')
+  const existing = await getReview(id)
+  if (!existing) return null
+  const updated: PerformanceReview = { ...existing, ...data, id, updatedAt: new Date().toISOString() }
+  await kv.set(revKey(id), updated)
+  return updated
+}
+
+export async function deleteReview(id: string): Promise<boolean> {
+  if (!isConfigured) throw new Error('Redis not configured')
+  const existing = await getReview(id)
+  if (!existing) return false
+  await kv.pipeline().del(revKey(id)).lrem(REV_LIST, 0, id).exec()
+  return true
 }
