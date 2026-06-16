@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import type { Accomplishment, CreateAccomplishment, ImpactLevel, CategorySlug } from '@/types'
+import type { Accomplishment, CreateAccomplishment, ImpactLevel, CategorySlug, KPI } from '@/types'
 import { Button } from '@/components/ui'
 import { CATEGORIES } from '@/lib/categories'
 import clsx from 'clsx'
@@ -21,6 +21,8 @@ const EMPTY: CreateAccomplishment = {
   date: new Date().toISOString().split('T')[0],
   featured: false,
   week: '',
+  kpiIds: [],
+  objectiveIds: [],
 }
 
 export default function AccomplishmentModal({ open, editItem, onClose, onSave }: Props) {
@@ -28,6 +30,13 @@ export default function AccomplishmentModal({ open, editItem, onClose, onSave }:
   const [metrics, setMetrics] = useState(['', '', ''])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [kpis, setKpis] = useState<KPI[]>([])
+
+  useEffect(() => {
+    if (open) {
+      fetch('/api/kpis').then(r => r.json()).then(({ data }) => setKpis(data ?? []))
+    }
+  }, [open])
 
   useEffect(() => {
     if (editItem) {
@@ -40,6 +49,8 @@ export default function AccomplishmentModal({ open, editItem, onClose, onSave }:
         date: editItem.date,
         featured: editItem.featured,
         week: editItem.week ?? '',
+        kpiIds: editItem.kpiIds ?? [],
+        objectiveIds: editItem.objectiveIds ?? [],
       })
       const m = [...editItem.metrics, '', '', ''].slice(0, 3)
       setMetrics(m)
@@ -49,6 +60,18 @@ export default function AccomplishmentModal({ open, editItem, onClose, onSave }:
     }
     setError('')
   }, [editItem, open])
+
+  const toggleKpi = (kpiId: string, objectiveId: string) => {
+    setForm(p => {
+      const currentIds = p.kpiIds ?? []
+      const selected = currentIds.includes(kpiId)
+      const newKpiIds = selected ? currentIds.filter(id => id !== kpiId) : [...currentIds, kpiId]
+      const allObjectiveIds = Array.from(new Set(
+        newKpiIds.map(id => kpis.find(k => k.id === id)?.objectiveId).filter(Boolean) as string[]
+      ))
+      return { ...p, kpiIds: newKpiIds, objectiveIds: allObjectiveIds }
+    })
+  }
 
   const handleSave = async () => {
     if (!form.title.trim()) { setError('Title is required'); return }
@@ -213,7 +236,7 @@ export default function AccomplishmentModal({ open, editItem, onClose, onSave }:
         </div>
 
         {/* Featured */}
-        <div className="mb-7">
+        <div className="mb-4">
           <label className="flex items-center gap-2.5 cursor-pointer text-[13px] text-eden-dark">
             <input
               type="checkbox"
@@ -224,6 +247,49 @@ export default function AccomplishmentModal({ open, editItem, onClose, onSave }:
             ⭐ Feature as a top talking point in Review Prep
           </label>
         </div>
+
+        {/* KPI Linkage */}
+        {kpis.length > 0 && (
+          <div className="mb-7">
+            <label className="block text-[11px] font-semibold uppercase tracking-[0.5px] text-eden-charcoal mb-0.5">
+              Link to KPIs (optional)
+            </label>
+            <p className="text-[11px] text-eden-grey mb-2">Tag this accomplishment to the KPIs it contributes to</p>
+            <div className="flex flex-wrap gap-1.5">
+              {kpis.map(k => {
+                const selected = (form.kpiIds ?? []).includes(k.id)
+                return (
+                  <button
+                    key={k.id}
+                    type="button"
+                    onClick={() => toggleKpi(k.id, k.objectiveId)}
+                    className={clsx(
+                      'text-[12px] px-3 py-1 rounded-full border transition-all',
+                      selected
+                        ? 'bg-eden-green text-white border-eden-green'
+                        : 'bg-white text-eden-grey border-eden-green/20 hover:border-eden-green hover:text-eden-green'
+                    )}
+                  >
+                    {k.title} — {k.weight}%
+                  </button>
+                )
+              })}
+            </div>
+            {(form.kpiIds ?? []).length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {(form.kpiIds ?? []).map(id => {
+                  const k = kpis.find(k => k.id === id)
+                  return k ? (
+                    <span key={id} className="text-[11px] bg-eden-green-pale text-eden-green px-2.5 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                      📈 {k.title}
+                      <button onClick={() => toggleKpi(id, k.objectiveId)} className="text-eden-green hover:text-red-500 ml-0.5">×</button>
+                    </span>
+                  ) : null
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex justify-end gap-2.5">

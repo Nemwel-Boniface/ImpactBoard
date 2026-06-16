@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import type { Accomplishment } from '@/types'
+import type { Accomplishment, KPI } from '@/types'
 import { CategoryBadge, ImpactIndicator } from '@/components/ui'
 import clsx from 'clsx'
 
@@ -9,9 +9,10 @@ interface Props {
   onToggleFeatured: (id: string) => void
   onDelete: (id: string) => void
   onEdit: (item: Accomplishment) => void
+  kpiMap?: Record<string, KPI>
 }
 
-export default function AccomplishmentCard({ item, onToggleFeatured, onDelete, onEdit }: Props) {
+export default function AccomplishmentCard({ item, onToggleFeatured, onDelete, onEdit, kpiMap }: Props) {
   const [deleting, setDeleting] = useState(false)
 
   const handleDelete = async () => {
@@ -65,6 +66,18 @@ export default function AccomplishmentCard({ item, onToggleFeatured, onDelete, o
             >
               <strong className="text-eden-green font-syne font-bold">{m}</strong>
             </div>
+          ))}
+        </div>
+      )}
+
+      {/* KPI pills */}
+      {item.kpiIds && item.kpiIds.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-3">
+          <span className="text-[10px] text-eden-grey uppercase tracking-wide mr-1 self-center">KPIs:</span>
+          {item.kpiIds.map(id => (
+            <span key={id} className="text-[10px] bg-eden-green-pale text-eden-green px-2 py-0.5 rounded-full font-semibold">
+              {kpiMap?.[id]?.title ?? 'KPI'}
+            </span>
           ))}
         </div>
       )}
