@@ -6,8 +6,14 @@ import clsx from 'clsx'
 const NAV = [
   { label: 'Dashboard',      href: '/',              icon: '📊' },
   { label: 'Accomplishments',href: '/accomplishments',icon: '🏆' },
-  { label: 'Review Prep',    href: '/review-prep',   icon: '📋' },
   { label: 'Import',         href: '/import',        icon: '📥' },
+]
+
+const TRACK_NAV = [
+  { label: 'Company Objectives', href: '/objectives',   icon: '🎯' },
+  { label: 'My KPIs',            href: '/kpis',         icon: '📈' },
+  { label: '1:1 Meetings',       href: '/one-on-ones',  icon: '🤝' },
+  { label: 'Reviews',            href: '/reviews',      icon: '📋' },
 ]
 
 const CATS = [
@@ -82,6 +88,25 @@ export default function Sidebar() {
           Workspace
         </p>
         {NAV.map(n => (
+          <Link
+            key={n.href}
+            href={n.href}
+            className={clsx(
+              'flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13.5px] transition-all',
+              path === n.href
+                ? 'bg-eden-green/20 text-eden-green-mid font-medium'
+                : 'text-white/55 hover:bg-white/[0.06] hover:text-white'
+            )}
+          >
+            <span className="w-5 text-center">{n.icon}</span>
+            {n.label}
+          </Link>
+        ))}
+
+        <p className="text-[10px] tracking-[1.5px] uppercase text-eden-grey/70 font-medium px-3 pt-5 pb-2">
+          Track
+        </p>
+        {TRACK_NAV.map(n => (
           <Link
             key={n.href}
             href={n.href}
