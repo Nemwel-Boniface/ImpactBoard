@@ -65,23 +65,28 @@ const Q2_KPIS = [
 
 export async function seedKPIs(): Promise<{ created: number; skipped: number }> {
   const existing = await getAllKPIs()
-  if (existing.length > 0) {
-    return { created: 0, skipped: Q2_KPIS.length }
-  }
+  const existingTitles = new Set(existing.map(k => k.title.toLowerCase().trim()))
 
   const objectives = await getAllObjectives()
   const objectiveByName = Object.fromEntries(objectives.map(o => [o.name, o]))
 
   let created = 0
+  let skipped = 0
+
   for (const kpi of Q2_KPIS) {
     const { matchObjectiveName, ...rest } = kpi
+    if (existingTitles.has(rest.title.toLowerCase().trim())) {
+      skipped++
+      continue
+    }
     const objective = objectiveByName[matchObjectiveName]
     if (!objective) {
       console.warn(`Objective not found: ${matchObjectiveName}`)
+      skipped++
       continue
     }
     await createKPI({ ...rest, objectiveId: objective.id })
     created++
   }
-  return { created, skipped: Q2_KPIS.length - created }
+  return { created, skipped }
 }
