@@ -20,6 +20,8 @@ export interface Accomplishment {
   featured: boolean
   week?: string            // e.g. "Week 14" — optional, populated from Excel import or manual entry
   source: 'manual' | 'import'
+  kpiIds?: string[]        // IDs of KPIs this accomplishment contributes to
+  objectiveIds?: string[]  // derived from kpiIds — which company objectives this surfaces to
   createdAt: string        // ISO timestamp
   updatedAt: string        // ISO timestamp
 }
@@ -27,9 +29,86 @@ export interface Accomplishment {
 export type CreateAccomplishment = Omit<
   Accomplishment,
   'id' | 'createdAt' | 'updatedAt' | 'source'
-> & { source?: 'manual' | 'import'; week?: string }
+> & { source?: 'manual' | 'import'; week?: string; kpiIds?: string[]; objectiveIds?: string[] }
 
 export type UpdateAccomplishment = Partial<CreateAccomplishment>
+
+// ── Company Objective ──────────────────────────────────────────
+export interface CompanyObjective {
+  id: string
+  name: string
+  description: string
+  targetLabel: string
+  balanceScoreCard: 'Financial' | 'Customer' | 'Internal Business Processes' | 'Learning and Growth' | string
+  order: number
+  active: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+// ── Personal KPI ──────────────────────────────────────────────
+export interface KPI {
+  id: string
+  objectiveId: string
+  title: string
+  description: string
+  weight: number
+  balanceScoreCard: 'Financial' | 'Customer' | 'Internal Business Processes' | 'Learning and Growth' | string
+  keyMetrics: string
+  quarter: string
+  active: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+// ── 1:1 Meeting ───────────────────────────────────────────────
+export interface FollowUpItem {
+  id: string
+  text: string
+  dueDate?: string
+  completed: boolean
+  completedAt?: string
+}
+
+export interface OneOnOne {
+  id: string
+  scheduledDate: string
+  scheduledTime: string
+  withName: string
+  withRole?: string
+  agenda?: string
+  status: 'scheduled' | 'completed' | 'cancelled'
+  notes?: string
+  followUpItems: FollowUpItem[]
+  linkedKpiIds: string[]
+  linkedAccomplishmentIds: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+// ── Performance Review ────────────────────────────────────────
+export interface ImprovementArea {
+  id: string
+  area: string
+  description?: string
+  targetDate?: string
+  resolved: boolean
+}
+
+export interface PerformanceReview {
+  id: string
+  title: string
+  scheduledDate: string
+  status: 'upcoming' | 'completed'
+  completedDate?: string
+  attendees: string[]
+  notes?: string
+  improvementAreas: ImprovementArea[]
+  linkedKpiIds: string[]
+  linkedAccomplishmentIds: string[]
+  createdAt: string
+  updatedAt: string
+}
 
 // ─── Category ──────────────────────────────────────────────
 export interface Category {
