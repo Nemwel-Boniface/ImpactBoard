@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 
 import { Suspense } from 'react'
 import { useState, useEffect, useCallback } from 'react'
-import type { Accomplishment, CreateAccomplishment } from '@/types'
+import type { Accomplishment, CreateAccomplishment, KPI } from '@/types'
 import AccomplishmentCard from '@/components/AccomplishmentCard'
 import AccomplishmentModal from '@/components/AccomplishmentModal'
 import { Button } from '@/components/ui'
@@ -23,6 +23,7 @@ function AccomplishmentsContent() {
 
   const [items, setItems]           = useState<Accomplishment[]>([])
   const [allItems, setAllItems]     = useState<Accomplishment[]>([])
+  const [kpiMap, setKpiMap]         = useState<Record<string, KPI>>({})
   const [loading, setLoading]       = useState(true)
   const [activeCat, setActiveCat]   = useState(initialCat)
   const [activeWeek, setActiveWeek] = useState('all')
@@ -31,11 +32,18 @@ function AccomplishmentsContent() {
   const [editItem, setEditItem]     = useState<Accomplishment | null>(null)
   const { toasts, show }            = useToast()
 
-  // Fetch all items once to derive the week list
+  // Fetch all items and KPIs once on mount
   useEffect(() => {
     fetch('/api/accomplishments')
       .then(r => r.json())
       .then(({ data }) => setAllItems(data ?? []))
+    fetch('/api/kpis')
+      .then(r => r.json())
+      .then(({ data }) => {
+        const map: Record<string, KPI> = {}
+        ;(data ?? []).forEach((k: KPI) => { map[k.id] = k })
+        setKpiMap(map)
+      })
   }, [])
 
   const weekOptions = ['all', ...Array.from(
@@ -218,6 +226,7 @@ function AccomplishmentsContent() {
               onToggleFeatured={handleToggleFeatured}
               onDelete={handleDelete}
               onEdit={handleEdit}
+              kpiMap={kpiMap}
             />
           ))}
         </div>
