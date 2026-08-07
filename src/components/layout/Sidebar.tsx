@@ -14,6 +14,7 @@ const TRACK_NAV = [
   { label: 'My KPIs',            href: '/kpis',         icon: '📈' },
   { label: '1:1 Meetings',       href: '/one-on-ones',  icon: '🤝' },
   { label: 'Reviews',            href: '/reviews',      icon: '📋' },
+  { label: 'Handover',           href: '/handover',     icon: '🧳' },
 ]
 
 const CATS = [
