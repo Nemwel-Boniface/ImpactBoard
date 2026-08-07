@@ -20,6 +20,10 @@ import type {
   KPI,
   OneOnOne,
   PerformanceReview,
+  Member,
+  CreateMember,
+  Handover,
+  CreateHandover,
 } from '@/types'
 import { CATEGORIES, calcImpactScore } from './categories'
 
@@ -435,4 +439,154 @@ export async function deleteReview(id: string): Promise<boolean> {
   if (!existing) return false
   await kv.pipeline().del(revKey(id)).lrem(REV_LIST, 0, id).exec()
   return true
+}
+
+// ── MEMBERS (handover contacts) ───────────────────────────────
+
+const MEMBER_LIST = 'members:list'
+const memberKey    = (id: string) => `members:item:${id}`
+
+export async function getAllMembers(): Promise<Member[]> {
+  if (!isConfigured) return []
+  const ids = await kv.lrange<string>(MEMBER_LIST, 0, -1)
+  if (!ids || ids.length === 0) return []
+  const pipeline = kv.pipeline()
+  ids.forEach(id => pipeline.get(memberKey(id)))
+  const results = await pipeline.exec()
+  return (results as (Member | null)[])
+    .filter((r): r is Member => r !== null)
+    .sort((a, b) => a.name.localeCompare(b.name))
+}
+
+export async function getMember(id: string): Promise<Member | null> {
+  if (!isConfigured) return null
+  return kv.get<Member>(memberKey(id))
+}
+
+export async function createMember(data: CreateMember): Promise<Member> {
+  if (!isConfigured) throw new Error('Redis not configured')
+  const now = new Date().toISOString()
+  const item: Member = { ...data, id: uuidv4(), createdAt: now, updatedAt: now }
+  await kv.pipeline().set(memberKey(item.id), item).lpush(MEMBER_LIST, item.id).exec()
+  return item
+}
+
+export async function updateMember(id: string, data: Partial<CreateMember>): Promise<Member | null> {
+  if (!isConfigured) throw new Error('Redis not configured')
+  const existing = await getMember(id)
+  if (!existing) return null
+  const updated: Member = { ...existing, ...data, id, updatedAt: new Date().toISOString() }
+  await kv.set(memberKey(id), updated)
+  return updated
+}
+
+// Deleting a member reassigns any handover items still on them back to me,
+// across every handover — not just the one currently open.
+export async function deleteMember(id: string): Promise<boolean> {
+  if (!isConfigured) throw new Error('Redis not configured')
+  const existing = await getMember(id)
+  if (!existing) return false
+
+  const handovers = await getAllHandovers()
+  const affected = handovers.filter(
+    h => h.memberIds.includes(id) || h.items.some(i => i.assigneeMemberId === id)
+  )
+  for (const h of affected) {
+    await updateHandover(h.id, {
+      memberIds: h.memberIds.filter(m => m !== id),
+      items: h.items.map(i =>
+        i.assigneeMemberId === id ? { ...i, assigneeMemberId: null, updatedAt: new Date().toISOString() } : i
+      ),
+    })
+  }
+
+  await kv.pipeline().del(memberKey(id)).lrem(MEMBER_LIST, 0, id).exec()
+  return true
+}
+
+// ── HANDOVERS ─────────────────────────────────────────────────
+
+const HANDOVER_LIST = 'handovers:list'
+const handoverKey    = (id: string) => `handovers:item:${id}`
+
+export async function getAllHandovers(): Promise<Handover[]> {
+  if (!isConfigured) return []
+  const ids = await kv.lrange<string>(HANDOVER_LIST, 0, -1)
+  if (!ids || ids.length === 0) return []
+  const pipeline = kv.pipeline()
+  ids.forEach(id => pipeline.get(handoverKey(id)))
+  const results = await pipeline.exec()
+  return (results as (Handover | null)[])
+    .filter((r): r is Handover => r !== null)
+    .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())
+}
+
+export async function getHandover(id: string): Promise<Handover | null> {
+  if (!isConfigured) return null
+  return kv.get<Handover>(handoverKey(id))
+}
+
+export async function createHandover(data: CreateHandover): Promise<Handover> {
+  if (!isConfigured) throw new Error('Redis not configured')
+  const now = new Date().toISOString()
+  const item: Handover = {
+    id: uuidv4(),
+    title: data.title,
+    reason: data.reason,
+    startDate: data.startDate,
+    endDate: data.endDate,
+    status: 'active',
+    memberIds: data.memberIds ?? [],
+    items: data.items ?? [],
+    createdAt: now,
+    updatedAt: now,
+  }
+  await kv.pipeline().set(handoverKey(item.id), item).lpush(HANDOVER_LIST, item.id).exec()
+  return item
+}
+
+export async function updateHandover(id: string, data: Partial<Handover>): Promise<Handover | null> {
+  if (!isConfigured) throw new Error('Redis not configured')
+  const existing = await getHandover(id)
+  if (!existing) return null
+  const updated: Handover = { ...existing, ...data, id, updatedAt: new Date().toISOString() }
+  await kv.set(handoverKey(id), updated)
+  return updated
+}
+
+export async function deleteHandover(id: string): Promise<boolean> {
+  if (!isConfigured) throw new Error('Redis not configured')
+  const existing = await getHandover(id)
+  if (!existing) return false
+  await kv.pipeline().del(handoverKey(id)).lrem(HANDOVER_LIST, 0, id).exec()
+  return true
+}
+
+// Manual close-out: reassign every item back to me and mark the handover ended.
+export async function endHandover(id: string): Promise<Handover | null> {
+  const existing = await getHandover(id)
+  if (!existing) return null
+  const now = new Date().toISOString()
+  return updateHandover(id, {
+    status: 'ended',
+    endedAt: now,
+    items: existing.items.map(i => ({ ...i, assigneeMemberId: null, updatedAt: now })),
+  })
+}
+
+// Remove one member from a single handover (not a global delete): unassigns
+// their items in that handover back to me and drops them from memberIds.
+export async function removeMemberFromHandover(
+  handoverId: string,
+  memberId: string
+): Promise<Handover | null> {
+  const existing = await getHandover(handoverId)
+  if (!existing) return null
+  const now = new Date().toISOString()
+  return updateHandover(handoverId, {
+    memberIds: existing.memberIds.filter(m => m !== memberId),
+    items: existing.items.map(i =>
+      i.assigneeMemberId === memberId ? { ...i, assigneeMemberId: null, updatedAt: now } : i
+    ),
+  })
 }

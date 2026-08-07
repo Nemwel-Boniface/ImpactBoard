@@ -110,6 +110,59 @@ export interface PerformanceReview {
   updatedAt: string
 }
 
+// ── Team Member (handover contact) ─────────────────────────────
+export interface Member {
+  id: string
+  name: string
+  role?: string
+  email?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type CreateMember = Omit<Member, 'id' | 'createdAt' | 'updatedAt'>
+
+// ── Handover ────────────────────────────────────────────────────
+export type HandoverItemPriority = 'high' | 'medium' | 'low'
+export type HandoverItemStatus = 'pending' | 'in_progress' | 'done'
+export type HandoverStatus = 'active' | 'ended'
+
+export interface HandoverItem {
+  id: string
+  title: string
+  context: string              // background/notes the successor needs
+  priority: HandoverItemPriority
+  status: HandoverItemStatus
+  assigneeMemberId: string | null  // null = with me
+  linkedKpiIds?: string[]
+  linkedAccomplishmentIds?: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Handover {
+  id: string
+  title: string
+  reason?: string
+  startDate: string
+  endDate: string
+  status: HandoverStatus
+  memberIds: string[]
+  items: HandoverItem[]
+  endedAt?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type CreateHandover = {
+  title: string
+  reason?: string
+  startDate: string
+  endDate: string
+  memberIds?: string[]
+  items?: HandoverItem[]
+}
+
 // ─── Category ──────────────────────────────────────────────
 export interface Category {
   slug: CategorySlug
